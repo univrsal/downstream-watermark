@@ -13,13 +13,14 @@ void frontend_save_load(obs_data_t *save_data, bool saving, void *data)
 {
 	SettingsDialog *dialog = (SettingsDialog *)data;
 	if (saving) {
-		OBSDataAutoRelease obj = obs_data_create();
-		dialog->save(obj.Get());
+		obs_data_t *obj = obs_data_create();
+		dialog->save(obj);
 		obs_data_set_obj(save_data, "bitrate-dock", obj);
+		obs_data_release(obj);
 	} else {
-		OBSDataAutoRelease obj =
-			obs_data_get_obj(save_data, "bitrate-dock");
-		dialog->load(obj.Get());
+		auto obj = obs_data_get_obj(save_data, "bitrate-dock");
+		dialog->load(obj);
+		obs_data_release(obj);
 	}
 }
 
@@ -76,7 +77,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 	});
 }
 
-void SettingsDialog::load(OBSData _data)
+void SettingsDialog::load(obs_data_t *_data)
 {
 	if (obs_data_has_user_value(_data, "path")) {
 		ui->txt_path->setText(
@@ -102,7 +103,7 @@ void SettingsDialog::load(OBSData _data)
 	on_image_path_changed();
 }
 
-void SettingsDialog::save(OBSData _data)
+void SettingsDialog::save(obs_data_t *_data)
 {
 	obs_data_set_string(_data, "path", qt_to_utf8(ui->txt_path->text()));
 	obs_data_set_int(_data, "x", ui->sb_x->value());
@@ -114,20 +115,31 @@ void SettingsDialog::save(OBSData _data)
 SettingsDialog::~SettingsDialog()
 {
 	obs_set_output_source(outputChannel, nullptr);
+
 	if (m_transition) {
 		obs_transition_clear(m_transition);
+		obs_source_release(m_transition);
+		m_transition = nullptr;
 	}
 	if (m_showTransition) {
 		obs_transition_clear(m_showTransition);
+		obs_source_release(m_showTransition);
+		m_showTransition = nullptr;
 	}
 	if (m_hideTransition) {
 		obs_transition_clear(m_hideTransition);
+		obs_source_release(m_hideTransition);
+		m_hideTransition = nullptr;
 	}
 	if (m_overrideTransition) {
 		obs_transition_clear(m_overrideTransition);
+		obs_source_release(m_overrideTransition);
+		m_overrideTransition = nullptr;
 	}
 
+	obs_source_release(m_watermark_source);
 	obs_source_release(m_color_filter);
+	obs_data_release(m_watermark_data);
 
 	delete ui;
 }
@@ -138,9 +150,11 @@ void SettingsDialog::on_image_path_changed()
 		m_watermark_source = nullptr;
 		apply_source(nullptr);
 	}
+
 	if (!m_watermark_data) {
 		m_watermark_data = obs_data_create();
 	}
+
 	obs_data_set_string(m_watermark_data, "file",
 			    qt_to_utf8(ui->txt_path->text()));
 	obs_data_set_double(m_watermark_data, "scale", ui->sb_scale->value());
@@ -173,26 +187,23 @@ void SettingsDialog::on_settings_changed()
 	obs_source_update(m_color_filter, m_watermark_data);
 }
 
-void SettingsDialog::apply_source(OBSSource newSource)
+void SettingsDialog::apply_source(obs_source_t *newSource)
 {
-	OBSSourceAutoRelease prevSource = obs_get_output_source(outputChannel);
+	obs_source_t *prevSource = obs_get_output_source(outputChannel);
 	obs_source_t *prevTransition = nullptr;
 	if (prevSource &&
 	    obs_source_get_type(prevSource) == OBS_SOURCE_TYPE_TRANSITION) {
-		prevTransition = prevSource.Get();
+		prevTransition = prevSource;
 		prevSource = obs_transition_get_active_source(prevSource);
 	}
-
-	obs_source_release(prevSource);
-	OBSSourceAutoRelease newTransition = nullptr;
+	obs_source_t *newTransition = nullptr;
 	uint32_t newTransitionDuration = transitionDuration;
-
 	if (prevSource == newSource) {
 	} else if (!prevSource && newSource && m_showTransition) {
-		newTransition = m_showTransition.Get();
+		newTransition = m_showTransition;
 		newTransitionDuration = showTransitionDuration;
 	} else if (prevSource && !newSource && m_hideTransition) {
-		newTransition = m_hideTransition.Get();
+		newTransition = m_hideTransition;
 		newTransitionDuration = hideTransitionDuration;
 	} else {
 		auto ph = obs_get_proc_handler();
@@ -213,10 +224,10 @@ void SettingsDialog::apply_source(OBSSource newSource)
 		}
 		calldata_free(&cd);
 		if (m_overrideTransition) {
-			newTransition = m_overrideTransition.Get();
+			newTransition = m_overrideTransition;
 			newTransitionDuration = overrideTransitionDuration;
 		} else if (m_transition)
-			newTransition = m_transition.Get();
+			newTransition = m_transition;
 	}
 	if (prevSource == newSource) {
 		//skip if nothing changed
@@ -236,6 +247,9 @@ void SettingsDialog::apply_source(OBSSource newSource)
 			}
 		}
 	}
+
+	obs_source_release(prevSource);
+	obs_source_release(prevTransition);
 }
 
 void SettingsDialog::SetTransition(const char *transition_name,
@@ -243,16 +257,16 @@ void SettingsDialog::SetTransition(const char *transition_name,
 {
 	obs_source_t *oldTransition = m_transition;
 	if (transition_type == transitionType::show)
-		oldTransition = m_showTransition.Get();
+		oldTransition = m_showTransition;
 	else if (transition_type == transitionType::hide)
-		oldTransition = m_showTransition.Get();
+		oldTransition = m_hideTransition;
 	else if (transition_type == transitionType::override)
-		oldTransition = m_showTransition.Get();
+		oldTransition = m_overrideTransition;
 
 	if (!oldTransition && (!transition_name || !strlen(transition_name)))
 		return;
 
-	OBSSourceAutoRelease newTransition = nullptr;
+	obs_source_t *newTransition = nullptr;
 	obs_frontend_source_list transitions = {};
 	get_transitions(get_transitions_data, &transitions);
 	for (size_t i = 0; i < transitions.sources.num; i++) {
@@ -272,14 +286,14 @@ void SettingsDialog::SetTransition(const char *transition_name,
 	obs_frontend_source_list_free(&transitions);
 
 	if (transition_type == transitionType::show)
-		m_showTransition = newTransition.Get();
+		m_showTransition = newTransition;
 	else if (transition_type == transitionType::hide)
-		m_hideTransition = newTransition.Get();
+		m_hideTransition = newTransition;
 	else if (transition_type == transitionType::override)
-		m_overrideTransition = newTransition.Get();
+		m_overrideTransition = newTransition;
 	else
-		m_transition = newTransition.Get();
-	OBSSourceAutoRelease prevSource = obs_get_output_source(outputChannel);
+		m_transition = newTransition;
+	obs_source_t *prevSource = obs_get_output_source(outputChannel);
 	if (oldTransition && prevSource == oldTransition) {
 		if (newTransition) {
 			//swap transition
@@ -290,6 +304,7 @@ void SettingsDialog::SetTransition(const char *transition_name,
 			obs_set_output_source(outputChannel, nullptr);
 		}
 	}
+	obs_source_release(prevSource);
 	if (oldTransition) {
 		obs_transition_clear(oldTransition);
 		obs_source_release(oldTransition);

@@ -2,9 +2,7 @@
 #define SETTINGSDIALOG_H
 
 #include <QDialog>
-
-#include <obs/obs.hpp>
-
+#include <obs-module.h>
 namespace Ui {
 class SettingsDialog;
 }
@@ -19,7 +17,7 @@ class SettingsDialog : public QDialog {
 
 	obs_source_t *m_watermark_source{};
 	obs_source_t *m_color_filter{};
-	OBSDataAutoRelease m_watermark_data{};
+	obs_data_t *m_watermark_data{};
 	int outputChannel{7};
 	get_transitions_callback_t get_transitions = nullptr;
 	void *get_transitions_data = nullptr;
@@ -29,10 +27,10 @@ class SettingsDialog : public QDialog {
 	uint32_t hideTransitionDuration;
 	uint32_t overrideTransitionDuration;
 
-	OBSSourceAutoRelease m_transition;
-	OBSSourceAutoRelease m_showTransition;
-	OBSSourceAutoRelease m_hideTransition;
-	OBSSourceAutoRelease m_overrideTransition;
+	obs_source_t *m_transition{};
+	obs_source_t *m_showTransition{};
+	obs_source_t *m_hideTransition{};
+	obs_source_t *m_overrideTransition{};
 
 public:
 	explicit SettingsDialog(QWidget *parent = nullptr);
@@ -56,7 +54,7 @@ public:
 	bool loaded;
 	Ui::SettingsDialog *ui;
 
-	void apply_source(OBSSource source);
+	void apply_source(obs_source_t *source);
 
 	void SetTransition(const char *transition_name,
 			   enum transitionType transition_type = match);
@@ -70,8 +68,8 @@ public:
 			apply_source(m_watermark_source);
 	}
 
-	void load(OBSData data);
-	void save(OBSData data);
+	void load(obs_data_t *data);
+	void save(obs_data_t *data);
 };
 
 extern void frontend_save_load(obs_data_t *save_data, bool saving, void *data);
