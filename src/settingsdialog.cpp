@@ -42,6 +42,9 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 	connect(ui->sb_scale,
 		QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
 		&SettingsDialog::on_settings_changed);
+
+	connect(ui->btn_ok, &QPushButton::clicked, this,
+		&SettingsDialog::toggleShowHide);
 }
 
 SettingsDialog::~SettingsDialog()
