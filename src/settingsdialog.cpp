@@ -62,6 +62,8 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 		&SettingsDialog::on_settings_changed);
 	connect(ui->sb_opacity, QOverload<int>::of(&QSpinBox::valueChanged),
 		this, &SettingsDialog::on_settings_changed);
+	connect(ui->cb_enabled, &QCheckBox::stateChanged, this,
+		&SettingsDialog::on_settings_changed);
 
 	connect(ui->btn_ok, &QPushButton::clicked, this,
 		&SettingsDialog::toggleShowHide);
@@ -100,6 +102,12 @@ void SettingsDialog::load(obs_data_t *_data)
 		ui->sb_opacity->setValue(
 			(int)obs_data_get_int(_data, "opacity"));
 	}
+
+	if (obs_data_has_user_value(_data, "enabled")) {
+		ui->cb_enabled->setChecked(
+			(bool)obs_data_get_bool(_data, "enabled"));
+	}
+
 	on_image_path_changed();
 }
 
@@ -110,6 +118,7 @@ void SettingsDialog::save(obs_data_t *_data)
 	obs_data_set_int(_data, "y", ui->sb_y->value());
 	obs_data_set_double(_data, "scale", ui->sb_scale->value());
 	obs_data_set_int(_data, "opacity", ui->sb_opacity->value());
+	obs_data_set_bool(_data, "enabled", ui->cb_enabled->isChecked());
 }
 
 SettingsDialog::~SettingsDialog()
@@ -172,6 +181,7 @@ void SettingsDialog::on_image_path_changed()
 	obs_source_update(m_watermark_source, m_watermark_data);
 	obs_source_update(m_color_filter, m_watermark_data);
 
+	obs_source_set_enabled(m_watermark_source, ui->cb_enabled->isChecked());
 	apply_source(m_watermark_source);
 }
 
@@ -183,6 +193,7 @@ void SettingsDialog::on_settings_changed()
 	obs_data_set_int(m_watermark_data, "opacity", ui->sb_opacity->value());
 	obs_source_update(m_watermark_source, m_watermark_data);
 	obs_source_update(m_color_filter, m_watermark_data);
+	obs_source_set_enabled(m_watermark_source, ui->cb_enabled->isChecked());
 }
 
 void SettingsDialog::apply_source(obs_source_t *newSource)

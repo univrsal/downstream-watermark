@@ -1,5 +1,4 @@
 #include "overlaysource.h"
-#include <obs/obs.hpp>
 #include <string>
 
 extern "C" {
