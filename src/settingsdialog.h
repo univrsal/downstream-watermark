@@ -17,9 +17,8 @@ typedef void (*get_transitions_callback_t)(
 class SettingsDialog : public QDialog {
 	Q_OBJECT
 
-	OBSSource m_watermark_source{};
-	OBSData m_watermark_data{};
-	obs_view_t *m_view{};
+	OBSSourceAutoRelease m_watermark_source{};
+	OBSDataAutoRelease m_watermark_data{};
 	int outputChannel{7};
 	get_transitions_callback_t get_transitions = nullptr;
 	void *get_transitions_data = nullptr;
@@ -29,10 +28,10 @@ class SettingsDialog : public QDialog {
 	uint32_t hideTransitionDuration;
 	uint32_t overrideTransitionDuration;
 
-	OBSSource transition;
-	OBSSource showTransition;
-	OBSSource hideTransition;
-	OBSSource overrideTransition;
+	OBSSourceAutoRelease m_transition;
+	OBSSourceAutoRelease m_showTransition;
+	OBSSourceAutoRelease m_hideTransition;
+	OBSSourceAutoRelease m_overrideTransition;
 
 public:
 	explicit SettingsDialog(QWidget *parent = nullptr);
@@ -63,9 +62,12 @@ public:
 	void SetTransitionDuration(int duration,
 				   enum transitionType transition_type);
 
-	void ClearKeyer() {}
-	void AddKeyer() {}
-	void SceneChanged() {}
+	void ClearKeyer() { apply_source(nullptr); }
+	void AddKeyer()
+	{
+		if (m_watermark_source)
+			apply_source(m_watermark_source.Get());
+	}
 };
 
 #endif // SETTINGSDIALOG_H

@@ -20,7 +20,7 @@ struct overlay_source {
 
 static const char *overlay_source_get_name(void *)
 {
-	return "overlay_source";
+	return obs_module_text("OverlaySource");
 }
 
 void unload_image(void *data)
@@ -76,7 +76,10 @@ static void overlay_source_defaults(obs_data_t *settings)
 
 static void overlay_source_destroy(void *data)
 {
+	obs_enter_graphics();
 	unload_image(data);
+	obs_leave_graphics();
+	delete static_cast<overlay_source *>(data);
 }
 
 static uint32_t overlay_source_getwidth(void *data)
