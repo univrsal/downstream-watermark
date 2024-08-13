@@ -59,6 +59,8 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 	connect(ui->sb_scale,
 		QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
 		&SettingsDialog::on_settings_changed);
+	connect(ui->sb_opacity, QOverload<int>::of(&QSpinBox::valueChanged),
+		this, &SettingsDialog::on_settings_changed);
 
 	connect(ui->btn_ok, &QPushButton::clicked, this,
 		&SettingsDialog::toggleShowHide);
@@ -92,6 +94,11 @@ void SettingsDialog::load(OBSData _data)
 	if (obs_data_has_user_value(_data, "scale")) {
 		ui->sb_scale->setValue(obs_data_get_double(_data, "scale"));
 	}
+
+	if (obs_data_has_user_value(_data, "opacity")) {
+		ui->sb_opacity->setValue(
+			(int)obs_data_get_int(_data, "opacity"));
+	}
 	on_image_path_changed();
 }
 
@@ -101,6 +108,7 @@ void SettingsDialog::save(OBSData _data)
 	obs_data_set_int(_data, "x", ui->sb_x->value());
 	obs_data_set_int(_data, "y", ui->sb_y->value());
 	obs_data_set_double(_data, "scale", ui->sb_scale->value());
+	obs_data_set_int(_data, "opacity", ui->sb_opacity->value());
 }
 
 SettingsDialog::~SettingsDialog()
@@ -119,6 +127,8 @@ SettingsDialog::~SettingsDialog()
 		obs_transition_clear(m_overrideTransition);
 	}
 
+	obs_source_release(m_color_filter);
+
 	delete ui;
 }
 
@@ -136,8 +146,17 @@ void SettingsDialog::on_image_path_changed()
 	obs_data_set_double(m_watermark_data, "scale", ui->sb_scale->value());
 	obs_data_set_int(m_watermark_data, "pos.x", ui->sb_x->value());
 	obs_data_set_int(m_watermark_data, "pos.y", ui->sb_y->value());
+	obs_data_set_int(m_watermark_data, "opacity", ui->sb_opacity->value());
+
 	m_watermark_source = obs_source_create_private(
-		"overlay_source", "__watermark", m_watermark_data);
+		"overlay_source", "downstreamwatermarksource",
+		m_watermark_data);
+
+	m_color_filter = obs_source_create_private(
+		"color_filter", "downstreamwatermarkcolorfilter",
+		m_watermark_data);
+	obs_source_add_active_child(m_watermark_source, m_color_filter);
+	obs_source_filter_add(m_watermark_source, m_color_filter);
 
 	obs_source_update(m_watermark_source, m_watermark_data);
 
@@ -149,7 +168,9 @@ void SettingsDialog::on_settings_changed()
 	obs_data_set_double(m_watermark_data, "scale", ui->sb_scale->value());
 	obs_data_set_int(m_watermark_data, "pos.x", ui->sb_x->value());
 	obs_data_set_int(m_watermark_data, "pos.y", ui->sb_y->value());
+	obs_data_set_int(m_watermark_data, "opacity", ui->sb_opacity->value());
 	obs_source_update(m_watermark_source, m_watermark_data);
+	obs_source_update(m_color_filter, m_watermark_data);
 }
 
 void SettingsDialog::apply_source(OBSSource newSource)

@@ -18,6 +18,7 @@ class SettingsDialog : public QDialog {
 	Q_OBJECT
 
 	obs_source_t *m_watermark_source{};
+	obs_source_t *m_color_filter{};
 	OBSDataAutoRelease m_watermark_data{};
 	int outputChannel{7};
 	get_transitions_callback_t get_transitions = nullptr;
