@@ -146,11 +146,6 @@ SettingsDialog::~SettingsDialog()
 
 void SettingsDialog::on_image_path_changed()
 {
-	if (m_watermark_source) {
-		m_watermark_source = nullptr;
-		apply_source(nullptr);
-	}
-
 	if (!m_watermark_data) {
 		m_watermark_data = obs_data_create();
 	}
@@ -162,17 +157,20 @@ void SettingsDialog::on_image_path_changed()
 	obs_data_set_int(m_watermark_data, "pos.y", ui->sb_y->value());
 	obs_data_set_int(m_watermark_data, "opacity", ui->sb_opacity->value());
 
-	m_watermark_source = obs_source_create_private(
-		"overlay_source", "downstreamwatermarksource",
-		m_watermark_data);
+	if (!m_watermark_source) {
+		m_watermark_source = obs_source_create_private(
+			"overlay_source", "downstreamwatermarksource",
+			m_watermark_data);
 
-	m_color_filter = obs_source_create_private(
-		"color_filter", "downstreamwatermarkcolorfilter",
-		m_watermark_data);
-	obs_source_add_active_child(m_watermark_source, m_color_filter);
-	obs_source_filter_add(m_watermark_source, m_color_filter);
+		m_color_filter = obs_source_create_private(
+			"color_filter", "downstreamwatermarkcolorfilter",
+			m_watermark_data);
+		obs_source_add_active_child(m_watermark_source, m_color_filter);
+		obs_source_filter_add(m_watermark_source, m_color_filter);
+	}
 
 	obs_source_update(m_watermark_source, m_watermark_data);
+	obs_source_update(m_color_filter, m_watermark_data);
 
 	apply_source(m_watermark_source);
 }
