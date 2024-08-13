@@ -24,6 +24,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-frontend-api.h>
 
 #include "settingsdialog.h"
+#include "overlaysource.h"
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
@@ -44,6 +45,8 @@ bool obs_module_load(void)
 		settings->toggleShowHide();
 	};
 	QAction::connect(menu_action, &QAction::triggered, menu_cb);
+
+	obs_register_source(&osi);
 
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);

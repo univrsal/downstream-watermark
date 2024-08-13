@@ -36,6 +36,7 @@ endif()
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.cpp
     src/settingsdialog.h src/settingsdialog.cpp src/settingsdialog.ui
+    src/overlaysource.cpp src/overlaysource.h 
 )
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})

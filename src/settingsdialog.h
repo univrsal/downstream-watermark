@@ -17,7 +17,8 @@ typedef void (*get_transitions_callback_t)(
 class SettingsDialog : public QDialog {
 	Q_OBJECT
 
-	OBSSource m_watermark_image_source{};
+	OBSSource m_watermark_source{};
+	OBSData m_watermark_data{};
 	obs_view_t *m_view{};
 	int outputChannel{7};
 	get_transitions_callback_t get_transitions = nullptr;
@@ -48,6 +49,8 @@ public:
 
 private slots:
 	void on_image_path_changed();
+
+	void on_settings_changed();
 
 public:
 	bool loaded;

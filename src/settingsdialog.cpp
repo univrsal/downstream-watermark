@@ -34,26 +34,51 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 
 	connect(ui->txt_path, &QLineEdit::textChanged, this,
 		&SettingsDialog::on_image_path_changed);
+
+	connect(ui->sb_x, QOverload<int>::of(&QSpinBox::valueChanged), this,
+		&SettingsDialog::on_settings_changed);
+	connect(ui->sb_y, QOverload<int>::of(&QSpinBox::valueChanged), this,
+		&SettingsDialog::on_settings_changed);
+	connect(ui->sb_scale,
+		QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+		&SettingsDialog::on_settings_changed);
 }
 
 SettingsDialog::~SettingsDialog()
 {
 	obs_frontend_remove_event_callback(frontend_event, this);
+	apply_source(nullptr);
+	m_watermark_source = nullptr;
+	m_watermark_data = nullptr;
 	delete ui;
 }
 
 void SettingsDialog::on_image_path_changed()
 {
-	if (m_watermark_image_source) {
-		m_watermark_image_source = nullptr;
+	if (m_watermark_source) {
+		m_watermark_source = nullptr;
 		apply_source(nullptr);
 	}
-	OBSData settings = obs_data_create();
-	obs_data_set_string(settings, "file", qt_to_utf8(ui->txt_path->text()));
-	m_watermark_image_source = obs_source_create_private(
-		"image_source", "__watermark", settings);
+	if (!m_watermark_data) {
+		m_watermark_data = obs_data_create();
+	}
+	obs_data_set_string(m_watermark_data, "file",
+			    qt_to_utf8(ui->txt_path->text()));
+	obs_data_set_double(m_watermark_data, "scale", 1.0);
+	obs_data_set_int(m_watermark_data, "pos.x", 0);
+	obs_data_set_int(m_watermark_data, "pos.y", 0);
+	m_watermark_source = obs_source_create_private(
+		"overlay_source", "__watermark", m_watermark_data);
 
-	apply_source(m_watermark_image_source);
+	apply_source(m_watermark_source);
+}
+
+void SettingsDialog::on_settings_changed()
+{
+	obs_data_set_double(m_watermark_data, "scale", ui->sb_scale->value());
+	obs_data_set_int(m_watermark_data, "pos.x", ui->sb_x->value());
+	obs_data_set_int(m_watermark_data, "pos.y", ui->sb_y->value());
+	obs_source_update(m_watermark_source, m_watermark_data);
 }
 
 void SettingsDialog::apply_source(OBSSource newSource)
