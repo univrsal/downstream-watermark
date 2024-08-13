@@ -57,7 +57,7 @@
      <item>
       <widget class="QSpinBox" name="sb_y">
        <property name="prefix">
-        <string>Y:</string>
+        <string>Y: </string>
        </property>
        <property name="maximum">
         <number>9999</number>
@@ -78,7 +78,7 @@
      <item>
       <widget class="QDoubleSpinBox" name="sb_scale">
        <property name="minimum">
-        <double>1.000000000000000</double>
+        <double>0.100000000000000</double>
        </property>
        <property name="maximum">
         <double>10.000000000000000</double>

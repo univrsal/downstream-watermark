@@ -1,20 +1,39 @@
 #include "settingsdialog.h"
 #include "ui_settingsdialog.h"
 
+#include <QFileDialog>
+#include <QMainWindow>
 #include <obs-frontend-api.h>
+#include <util/config-file.h>
 
 #define utf8_to_qt(_str) QString::fromUtf8(_str)
 #define qt_to_utf8(_str) _str.toUtf8().constData()
 
+void frontend_save_load(obs_data_t *save_data, bool saving, void *data)
+{
+	SettingsDialog *dialog = (SettingsDialog *)data;
+	if (saving) {
+		OBSDataAutoRelease obj = obs_data_create();
+		dialog->save(obj.Get());
+		obs_data_set_obj(save_data, "bitrate-dock", obj);
+	} else {
+		OBSDataAutoRelease obj =
+			obs_data_get_obj(save_data, "bitrate-dock");
+		dialog->load(obj.Get());
+	}
+}
+
 void frontend_event(enum obs_frontend_event event, void *data)
 {
-	auto downstreamKeyerDock = static_cast<SettingsDialog *>(data);
+	auto dialog = static_cast<SettingsDialog *>(data);
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP &&
-	    downstreamKeyerDock->loaded) {
-		downstreamKeyerDock->ClearKeyer();
-		downstreamKeyerDock->AddKeyer();
+	    dialog->loaded) {
+
 	} else if (event == OBS_FRONTEND_EVENT_EXIT) {
-		downstreamKeyerDock->ClearKeyer();
+		obs_frontend_remove_event_callback(frontend_event, dialog);
+		dialog->ClearKeyer();
+	} else if (event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		dialog->AddKeyer();
 	}
 }
 
@@ -43,14 +62,63 @@ SettingsDialog::SettingsDialog(QWidget *parent)
 
 	connect(ui->btn_ok, &QPushButton::clicked, this,
 		&SettingsDialog::toggleShowHide);
+
+	connect(ui->btn_browse, &QPushButton::clicked, [this]() {
+		QString path = QFileDialog::getOpenFileName(
+			this, "Select image", "",
+			"Images (*.png *.jpg *.jpeg)");
+		if (!path.isEmpty()) {
+			ui->txt_path->setText(path);
+			on_image_path_changed();
+		}
+	});
+}
+
+void SettingsDialog::load(OBSData _data)
+{
+	if (obs_data_has_user_value(_data, "path")) {
+		ui->txt_path->setText(
+			utf8_to_qt(obs_data_get_string(_data, "path")));
+	}
+
+	if (obs_data_has_user_value(_data, "x")) {
+		ui->sb_x->setValue((int)obs_data_get_int(_data, "x"));
+	}
+
+	if (obs_data_has_user_value(_data, "y")) {
+		ui->sb_y->setValue((int)obs_data_get_int(_data, "y"));
+	}
+
+	if (obs_data_has_user_value(_data, "scale")) {
+		ui->sb_scale->setValue(obs_data_get_double(_data, "scale"));
+	}
+	on_image_path_changed();
+}
+
+void SettingsDialog::save(OBSData _data)
+{
+	obs_data_set_string(_data, "path", qt_to_utf8(ui->txt_path->text()));
+	obs_data_set_int(_data, "x", ui->sb_x->value());
+	obs_data_set_int(_data, "y", ui->sb_y->value());
+	obs_data_set_double(_data, "scale", ui->sb_scale->value());
 }
 
 SettingsDialog::~SettingsDialog()
 {
-	obs_frontend_remove_event_callback(frontend_event, this);
-	apply_source(nullptr);
-	m_watermark_source = nullptr;
-	m_watermark_data = nullptr;
+	obs_set_output_source(outputChannel, nullptr);
+	if (m_transition) {
+		obs_transition_clear(m_transition);
+	}
+	if (m_showTransition) {
+		obs_transition_clear(m_showTransition);
+	}
+	if (m_hideTransition) {
+		obs_transition_clear(m_hideTransition);
+	}
+	if (m_overrideTransition) {
+		obs_transition_clear(m_overrideTransition);
+	}
+
 	delete ui;
 }
 
@@ -65,13 +133,15 @@ void SettingsDialog::on_image_path_changed()
 	}
 	obs_data_set_string(m_watermark_data, "file",
 			    qt_to_utf8(ui->txt_path->text()));
-	obs_data_set_double(m_watermark_data, "scale", 1.0);
-	obs_data_set_int(m_watermark_data, "pos.x", 0);
-	obs_data_set_int(m_watermark_data, "pos.y", 0);
+	obs_data_set_double(m_watermark_data, "scale", ui->sb_scale->value());
+	obs_data_set_int(m_watermark_data, "pos.x", ui->sb_x->value());
+	obs_data_set_int(m_watermark_data, "pos.y", ui->sb_y->value());
 	m_watermark_source = obs_source_create_private(
 		"overlay_source", "__watermark", m_watermark_data);
 
-	apply_source(m_watermark_source.Get());
+	obs_source_update(m_watermark_source, m_watermark_data);
+
+	apply_source(m_watermark_source);
 }
 
 void SettingsDialog::on_settings_changed()

@@ -17,7 +17,7 @@ typedef void (*get_transitions_callback_t)(
 class SettingsDialog : public QDialog {
 	Q_OBJECT
 
-	OBSSourceAutoRelease m_watermark_source{};
+	obs_source_t *m_watermark_source{};
 	OBSDataAutoRelease m_watermark_data{};
 	int outputChannel{7};
 	get_transitions_callback_t get_transitions = nullptr;
@@ -66,8 +66,13 @@ public:
 	void AddKeyer()
 	{
 		if (m_watermark_source)
-			apply_source(m_watermark_source.Get());
+			apply_source(m_watermark_source);
 	}
+
+	void load(OBSData data);
+	void save(OBSData data);
 };
+
+extern void frontend_save_load(obs_data_t *save_data, bool saving, void *data);
 
 #endif // SETTINGSDIALOG_H

@@ -50,10 +50,13 @@ bool obs_module_load(void)
 
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)",
 		PLUGIN_VERSION);
+	obs_frontend_add_save_callback(frontend_save_load, settings);
+
 	return true;
 }
 
 void obs_module_unload(void)
 {
 	obs_log(LOG_INFO, "plugin unloaded");
+	obs_frontend_remove_save_callback(frontend_save_load, settings);
 }

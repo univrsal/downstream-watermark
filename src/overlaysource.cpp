@@ -98,7 +98,7 @@ static void overlay_source_render(void *data, gs_effect_t *effect)
 {
 	auto *context = static_cast<overlay_source *>(data);
 
-	if (!context->m_image)
+	if (!context->m_image || (context->img_cx == 0 && context->img_cy == 0))
 		return;
 
 	const bool previous = gs_framebuffer_srgb_enabled();
